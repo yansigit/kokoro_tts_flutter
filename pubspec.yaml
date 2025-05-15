@@ -1,0 +1,33 @@
+name: kokoro_tts_flutter
+description: A Flutter implementation of Kokoro-TTS using ONNX Runtime
+version: 0.1.0
+homepage: https://github.com/yansigit
+repository: https://github.com/yansigit/kokoro_tts_flutter
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi: ^2.1.0
+  path: ^1.8.3
+  path_provider: ^2.1.1
+  malsami: ^0.0.1
+  flutter_onnxruntime: ^1.4.0  # For ONNX model inference
+  just_audio: ^0.9.36     # For audio playback
+  http: ^1.1.0            # For downloading model files
+  collection: ^1.18.0
+  async: ^2.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  assets:
+    - assets/

@@ -1,0 +1,149 @@
+import 'dart:async';
+
+import 'dart:typed_data';
+import 'dart:math' as math;
+
+import 'package:flutter_tflite/flutter_tflite.dart';
+
+/// TFLite model runner for Kokoro TTS
+///
+/// This class handles loading and running inference on the TFLite model.
+/// It serves as a substitute for the ONNX Runtime in the original Python implementation.
+class TFLiteModelRunner {
+  /// Path to the TFLite model file
+  final String modelPath;
+  
+  /// Whether the model has been successfully loaded
+  bool _isLoaded = false;
+  
+  /// Creates a new TFLite model runner
+  ///
+  /// [modelPath] is the path to the TFLite model file
+  TFLiteModelRunner(this.modelPath);
+  
+  /// Initialize the TFLite model
+  Future<void> initialize() async {
+    if (_isLoaded) return;
+    
+    try {
+      // Initialize TFLite
+      await Tflite.close();
+      final result = await Tflite.loadModel(
+        model: modelPath,
+        numThreads: 4,
+        useGpuDelegate: false,
+      );
+      
+      if (result != null && result.isNotEmpty) {
+        _isLoaded = true;
+      } else {
+        throw Exception('Failed to load TFLite model: empty result');
+      }
+    } catch (e) {
+      throw Exception('Failed to initialize TFLite model: $e');
+    }
+  }
+  
+  /// Run inference on the model to generate audio from tokens and voice
+  Future<Float32List> runInference({
+    required List<int> tokens,
+    required Float32List voice,
+    required double speed,
+  }) async {
+    if (!_isLoaded) {
+      throw StateError('Model not initialized. Call initialize() first.');
+    }
+    
+    try {
+      // Prepare input data
+      // Note: In a real implementation, we would need to match the exact input format
+      // expected by the TFLite model, which should be converted from the ONNX model
+      
+      // Prepare a batch with padding tokens
+      final paddedTokens = [0, ...tokens, 0];
+      
+      // Run inference
+      final output = await Tflite.runModelOnBinary(
+        binary: _prepareInputData(paddedTokens, voice, speed),
+      );
+      
+      if (output == null) {
+        throw Exception('TFLite inference failed: null output');
+      }
+      
+      // Process the output
+      // In a real implementation, we'd extract the audio waveform from the output
+      // For this example, we'll generate a synthetic audio waveform
+      return _synthesizeAudio(tokens.length);
+      
+    } catch (e) {
+      throw Exception('TFLite inference failed: $e');
+    }
+  }
+  
+  /// Prepare input data for the TFLite model
+  ///
+  /// This would need to be adapted to match the actual input format of your TFLite model
+  Uint8List _prepareInputData(List<int> tokens, Float32List voice, double speed) {
+    // This is a simplified example - the actual implementation would depend on your model
+    
+    // Convert tokens to bytes
+    final tokenBytes = Uint8List(tokens.length * 4);
+    final tokenBuffer = ByteData.view(tokenBytes.buffer);
+    for (int i = 0; i < tokens.length; i++) {
+      tokenBuffer.setInt32(i * 4, tokens[i], Endian.little);
+    }
+    
+    // Convert voice embedding to bytes
+    final voiceBytes = Uint8List(voice.length * 4);
+    final voiceBuffer = ByteData.view(voiceBytes.buffer);
+    for (int i = 0; i < voice.length; i++) {
+      voiceBuffer.setFloat32(i * 4, voice[i], Endian.little);
+    }
+    
+    // Convert speed to bytes
+    final speedBytes = Uint8List(4);
+    final speedBuffer = ByteData.view(speedBytes.buffer);
+    speedBuffer.setFloat32(0, speed, Endian.little);
+    
+    // Combine all input bytes
+    final result = Uint8List(tokenBytes.length + voiceBytes.length + speedBytes.length);
+    result.setRange(0, tokenBytes.length, tokenBytes);
+    result.setRange(tokenBytes.length, tokenBytes.length + voiceBytes.length, voiceBytes);
+    result.setRange(tokenBytes.length + voiceBytes.length, result.length, speedBytes);
+    
+    return result;
+  }
+  
+  /// Synthesize audio for demonstration purposes
+  ///
+  /// In a real implementation, this would be replaced with the actual output from the TFLite model
+  Float32List _synthesizeAudio(int length) {
+    // Generate a sine wave as a placeholder for real audio output
+    // In a real implementation, this would be the output from the model
+    final sampleCount = length * 200; // Arbitrary mapping of text length to audio length
+    final audio = Float32List(sampleCount);
+    
+    for (int i = 0; i < sampleCount; i++) {
+      // Create a simple decaying sine wave
+      final t = i / sampleCount;
+      final decay = 1.0 - t;
+      audio[i] = decay * 0.5 * sin(i * 0.1);
+    }
+    
+    return audio;
+  }
+  
+  /// Simple sine function
+  double sin(double x) {
+    return math.sin(x);
+  }
+  
+  /// Release resources
+  Future<void> dispose() async {
+    if (_isLoaded) {
+      await Tflite.close();
+      _isLoaded = false;
+    }
+  }
+}
